@@ -5,6 +5,7 @@ use crate::channels::traits::{Channel, ChannelMessage, SendMessage};
 use crate::config::schema::WeComConfig;
 use async_trait::async_trait;
 use rust_i18n::t;
+use tracing::info;
 use types::WeComPayload;
 
 #[derive(Debug)]
@@ -68,6 +69,8 @@ impl WeComChannel {
             payload.clone()
         };
 
+        info!("{:?}", msg_json);
+
         let Ok(data) = serde_json::from_value::<WeComPayload>(msg_json) else {
             return vec![];
         };
@@ -104,7 +107,7 @@ impl Channel for WeComChannel {
             }
         });
 
-        tracing::info!("WeCom sending message: body={}", body);
+        tracing::info!("{}", t!("wecom_sending_message_body", body = body));
 
         let res = self.client.post(response_url).json(&body).send().await?;
 

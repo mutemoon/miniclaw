@@ -8,9 +8,13 @@ pub fn truncate_with_ellipsis(s: &str, max_len: usize) -> String {
     }
 }
 
-pub async fn run_claude_process(prompt: &str) -> anyhow::Result<String> {
+/// 在指定仓库目录下调用 claude CLI 执行 prompt
+pub async fn run_claude_process(prompt: &str, repo_dir: &str) -> anyhow::Result<String> {
     let output = tokio::process::Command::new("claude")
+        .arg("-p")
         .arg(prompt)
+        .arg("--dangerously-skip-permissions")
+        .current_dir(repo_dir)
         .output()
         .await?;
 
