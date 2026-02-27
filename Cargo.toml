@@ -22,3 +22,5 @@ rand = "0.8"
 toml = "0.8"
 bytes = "1.0"
 tower-http = { version = "0.5", features = ["trace"] }
+rust-i18n = "3.1"
+sys-locale = "0.3"

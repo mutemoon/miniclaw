@@ -1,0 +1,18 @@
+{
+  "wecom_not_configured": "WeCom 未配置",
+  "missing_echostr": "缺少 echostr 参数",
+  "wecom_verified_success": "WeCom 回调验证成功",
+  "wecom_verification_failed": "WeCom 回调验证失败：%{error}",
+  "forbidden": "禁止访问",
+  "invalid_json_payload": "无效的 JSON 负载",
+  "wecom_signature_verification_failed": "WeCom 签名验证失败：%{error}",
+  "failed_to_parse_decrypted_wecom_json": "解析解密后的 WeCom JSON 失败：%{error}",
+  "failed_to_decrypt_wecom_message": "解密 WeCom 消息失败：%{error}",
+  "wecom_webhook_message": "收到来自 %{sender} 的 WeCom 消息：%{content}",
+  "invalid_wecom_response_url": "无效的 WeCom response_url: %{url}",
+  "wecom_sending_message": "WeCom 发送消息：recipient=%{recipient} content_len=%{len}",
+  "wecom_reply_failed": "WeCom 回复失败：status=%{status} body=%{body}",
+  "wecom_sent_success": "成功发送 WeCom 消息到 %{url}",
+  "listening_on": "正在监听 %{addr}",
+  "claude_process_failed": "Claude 进程失败：%{error}"
+}

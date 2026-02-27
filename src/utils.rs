@@ -1,3 +1,5 @@
+use rust_i18n::t;
+
 pub fn truncate_with_ellipsis(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
@@ -16,6 +18,6 @@ pub async fn run_claude_process(prompt: &str) -> anyhow::Result<String> {
         Ok(String::from_utf8_lossy(&output.stdout).to_string())
     } else {
         let err = String::from_utf8_lossy(&output.stderr);
-        anyhow::bail!("Claude process failed: {}", err)
+        anyhow::bail!(t!("claude_process_failed", error = err))
     }
 }

@@ -1,0 +1,18 @@
+{
+  "wecom_not_configured": "WeCom not configured",
+  "missing_echostr": "Missing echostr",
+  "wecom_verified_success": "WeCom webhook verified successfully",
+  "wecom_verification_failed": "WeCom webhook verification failed: %{error}",
+  "forbidden": "Forbidden",
+  "invalid_json_payload": "Invalid JSON payload",
+  "wecom_signature_verification_failed": "WeCom signature verification failed: %{error}",
+  "failed_to_parse_decrypted_wecom_json": "Failed to parse decrypted WeCom JSON: %{error}",
+  "failed_to_decrypt_wecom_message": "Failed to decrypt WeCom message: %{error}",
+  "wecom_webhook_message": "WeCom webhook message from %{sender}: %{content}",
+  "invalid_wecom_response_url": "Invalid WeCom response_url: %{url}",
+  "wecom_sending_message": "WeCom sending message: recipient=%{recipient} content_len=%{len}",
+  "wecom_reply_failed": "WeCom reply failed: status=%{status} body=%{body}",
+  "wecom_sent_success": "WeCom message sent successfully to %{url}",
+  "listening_on": "Listening on %{addr}",
+  "claude_process_failed": "Claude process failed: %{error}"
+}

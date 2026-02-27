@@ -4,6 +4,7 @@ pub mod types;
 use crate::channels::traits::{Channel, ChannelMessage, SendMessage};
 use crate::config::schema::WeComConfig;
 use async_trait::async_trait;
+use rust_i18n::t;
 use types::WeComPayload;
 
 #[derive(Debug)]
@@ -42,7 +43,7 @@ impl WeComChannel {
         let msg_json = if let Some(encrypt) = payload.get("encrypt").and_then(|e| e.as_str()) {
             if let (Some(sig), Some(ts), Some(n)) = (signature, timestamp, nonce) {
                 if let Err(e) = crypto::verify_signature(&self.config, sig, ts, n, encrypt) {
-                    tracing::error!("WeCom signature verification failed: {e}");
+                    tracing::error!("{}", t!("wecom_signature_verification_failed", error = e));
                     return vec![];
                 }
             }
@@ -51,12 +52,15 @@ impl WeComChannel {
                 Ok(decrypted) => match serde_json::from_str::<serde_json::Value>(&decrypted) {
                     Ok(v) => v,
                     Err(e) => {
-                        tracing::error!("Failed to parse decrypted WeCom JSON: {e}");
+                        tracing::error!(
+                            "{}",
+                            t!("failed_to_parse_decrypted_wecom_json", error = e)
+                        );
                         return vec![];
                     }
                 },
                 Err(e) => {
-                    tracing::error!("Failed to decrypt WeCom message: {e}");
+                    tracing::error!("{}", t!("failed_to_decrypt_wecom_message", error = e));
                     return vec![];
                 }
             }
@@ -81,13 +85,16 @@ impl Channel for WeComChannel {
     async fn send(&self, message: &SendMessage) -> anyhow::Result<()> {
         let response_url = &message.recipient;
         if !response_url.starts_with("http") {
-            anyhow::bail!("Invalid WeCom response_url: {}", response_url);
+            anyhow::bail!(t!("invalid_wecom_response_url", url = response_url));
         }
 
         tracing::info!(
-            "WeCom sending message: recipient={} content_len={}",
-            response_url,
-            message.content.len()
+            "{}",
+            t!(
+                "wecom_sending_message",
+                recipient = response_url,
+                len = message.content.len()
+            )
         );
 
         let body = serde_json::json!({
@@ -104,11 +111,11 @@ impl Channel for WeComChannel {
         if !res.status().is_success() {
             let status = res.status();
             let text = res.text().await.unwrap_or_default();
-            tracing::error!("WeCom reply failed: status={} body={}", status, text);
-            anyhow::bail!("WeCom reply failed with status {}: {}", status, text);
+            tracing::error!("{}", t!("wecom_reply_failed", status = status, body = text));
+            anyhow::bail!(t!("wecom_reply_failed", status = status, body = text));
         }
 
-        tracing::info!("WeCom message sent successfully to {}", response_url);
+        tracing::info!("{}", t!("wecom_sent_success", url = response_url));
 
         Ok(())
     }

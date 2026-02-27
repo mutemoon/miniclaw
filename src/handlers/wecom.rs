@@ -4,10 +4,11 @@ use crate::utils::{run_claude_process, truncate_with_ellipsis};
 use axum::{
     Json,
     extract::{Query, State},
-    http::StatusCode,
+    http::{HeaderMap, StatusCode},
     response::IntoResponse,
 };
 use bytes::Bytes;
+use rust_i18n::t;
 
 #[derive(Debug, serde::Deserialize)]
 pub struct WeComVerifyQuery {
@@ -20,13 +21,20 @@ pub struct WeComVerifyQuery {
 pub async fn handle_wecom_verify(
     State(state): State<AppState>,
     Query(params): Query<WeComVerifyQuery>,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
+    let locale = crate::i18n::get_locale_from_headers(&headers);
+    rust_i18n::set_locale(&locale);
+
     let Some(ref wecom) = state.wecom else {
-        return (StatusCode::NOT_FOUND, "WeCom not configured".to_string());
+        return (
+            StatusCode::NOT_FOUND,
+            t!("wecom_not_configured").to_string(),
+        );
     };
 
     let Some(echostr) = params.echostr else {
-        return (StatusCode::BAD_REQUEST, "Missing echostr".to_string());
+        return (StatusCode::BAD_REQUEST, t!("missing_echostr").to_string());
     };
 
     match wecom.verify_url(
@@ -36,12 +44,12 @@ pub async fn handle_wecom_verify(
         &echostr,
     ) {
         Ok(plain_text) => {
-            tracing::info!("WeCom webhook verified successfully");
+            tracing::info!("{}", t!("wecom_verified_success"));
             (StatusCode::OK, plain_text)
         }
         Err(e) => {
-            tracing::warn!("WeCom webhook verification failed: {e}");
-            (StatusCode::FORBIDDEN, "Forbidden".to_string())
+            tracing::warn!("{}", t!("wecom_verification_failed", error = e));
+            (StatusCode::FORBIDDEN, t!("forbidden").to_string())
         }
     }
 }
@@ -49,19 +57,23 @@ pub async fn handle_wecom_verify(
 pub async fn handle_wecom_webhook(
     State(state): State<AppState>,
     Query(query): Query<WeComVerifyQuery>,
+    headers: HeaderMap,
     body: Bytes,
 ) -> impl IntoResponse {
+    let locale = crate::i18n::get_locale_from_headers(&headers);
+    rust_i18n::set_locale(&locale);
+
     let Some(ref wecom) = state.wecom else {
         return (
             StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "WeCom not configured"})),
+            Json(serde_json::json!({"error": t!("wecom_not_configured")})),
         );
     };
 
     let Ok(payload) = serde_json::from_slice::<serde_json::Value>(&body) else {
         return (
             StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Invalid JSON payload"})),
+            Json(serde_json::json!({"error": t!("invalid_json_payload")})),
         );
     };
 
@@ -79,9 +91,12 @@ pub async fn handle_wecom_webhook(
 
     for msg in &messages {
         tracing::info!(
-            "WeCom webhook message from {}: {}",
-            msg.sender,
-            truncate_with_ellipsis(&msg.content, 50)
+            "{}",
+            t!(
+                "wecom_webhook_message",
+                sender = msg.sender,
+                content = truncate_with_ellipsis(&msg.content, 50)
+            )
         );
 
         match run_claude_process(&msg.content).await {
