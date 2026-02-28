@@ -1,10 +1,12 @@
 use rust_i18n::t;
 
 pub fn truncate_with_ellipsis(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
+    if s.chars().count() <= max_len {
         s.to_string()
     } else {
-        format!("{}...", &s[..max_len])
+        // 使用 chars().take() 来确保在字符边界上截断
+        let truncated: String = s.chars().take(max_len).collect();
+        format!("{}...", truncated)
     }
 }
 
@@ -14,6 +16,8 @@ pub async fn run_claude_process(prompt: &str, repo_dir: &str) -> anyhow::Result<
         .arg("-p")
         .arg(prompt)
         .arg("--dangerously-skip-permissions")
+        .arg("--append-system-prompt-file")
+        .arg(".claude/claw/AGENTS.md")
         .current_dir(repo_dir)
         .output()
         .await?;
