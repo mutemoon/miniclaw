@@ -8,6 +8,55 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing_subscriber::prelude::*;
 
+fn detect_system_locale() -> String {
+    // 首先尝试使用 sys-locale 获取系统语言
+    if let Some(locale) = sys_locale::get_locale() {
+        // 对于 "C.UTF-8" 这样的情况，尝试从环境变量获取更多信息
+        if &locale == "C.UTF-8" || &locale == "C" {
+            // 尝试从 LANG 或 LC_* 环境变量获取更多信息
+            if let Ok(lang) = std::env::var("LANG") {
+                if lang.starts_with("zh") {
+                    return "zh-CN".to_string();
+                }
+            }
+            // 尝试其他常见的语言环境变量
+            for var in ["LC_ALL", "LC_CTYPE", "LC_MESSAGES"] {
+                if let Ok(lang) = std::env::var(var) {
+                    if lang.starts_with("zh") {
+                        return "zh-CN".to_string();
+                    }
+                }
+            }
+            // 如果没有找到中文相关的环境变量，则返回 "en"
+            return "en".to_string();
+        }
+        
+        // 如果检测到的语言包含 "zh"，则返回 "zh-CN"
+        if locale.to_lowercase().starts_with("zh") {
+            return "zh-CN".to_string();
+        } else {
+            // 否则返回语言代码的前两个字母，并尝试匹配我们的语言文件
+            let lang_code = locale.split('-').next().unwrap_or("en").split('_').next().unwrap_or("en");
+            match lang_code {
+                "zh" => "zh-CN".to_string(),
+                "en" => "en".to_string(),
+                // 可以在这里添加其他语言支持
+                _ => "en".to_string(), // 默认为英语
+            }
+        }
+    } else {
+        // 如果 sys-locale 无法获取语言，则尝试从环境变量获取
+        if let Ok(lang) = std::env::var("LANG") {
+            if lang.starts_with("zh") {
+                return "zh-CN".to_string();
+            }
+        }
+        
+        // 最后返回默认语言
+        "en".to_string()
+    }
+}
+
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let log_dir = ".claude/miniclaw";
@@ -37,7 +86,7 @@ async fn main() -> anyhow::Result<()> {
         .with(file_layer)
         .init();
 
-    let system_locale = sys_locale::get_locale().unwrap_or_else(|| "en".to_string());
+    let system_locale = detect_system_locale();
     miniclaw::rust_i18n::set_locale(&system_locale);
     tracing::info!("{}", t!("system_locale_detected", locale = system_locale));
 

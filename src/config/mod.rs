@@ -45,16 +45,15 @@ encoding_aes_key = "YOUR_AES_KEY"
 
         println!(
             "{}",
-            t!("config_generated", path = path.display().to_string())
+            t!("config_generated")
         );
+        println!("{}", path.display().to_string());
         println!("{}", t!("please_configure"));
         std::process::exit(0);
     }
 
-    tracing::info!(
-        "{}",
-        t!("loading_config", path = path.display().to_string())
-    );
+    tracing::info!("{}", t!("loading_config"));
+    tracing::info!("{}", path.display().to_string());
     let content = std::fs::read_to_string(path).context(t!("failed_to_read_config"))?;
     let mut config: Config = toml::from_str(&content).context(t!("failed_to_parse_config"))?;
 
