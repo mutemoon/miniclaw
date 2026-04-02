@@ -1,10 +1,9 @@
-use axum::{Router, routing::get};
 use miniclaw::channels::traits::{Channel, ChannelMessage, SendMessage};
 use miniclaw::channels::wecom::WeComChannel;
-use miniclaw::state::{AgentEntry, AppState};
-rust_i18n::i18n!("locales");
+use miniclaw::state::AgentEntry;
 use miniclaw::utils::run_claude_process;
 use rust_i18n::t;
+rust_i18n::i18n!("locales");
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing_subscriber::prelude::*;
@@ -31,13 +30,19 @@ fn detect_system_locale() -> String {
             // 如果没有找到中文相关的环境变量，则返回 "en"
             return "en".to_string();
         }
-        
+
         // 如果检测到的语言包含 "zh"，则返回 "zh-CN"
         if locale.to_lowercase().starts_with("zh") {
             return "zh-CN".to_string();
         } else {
             // 否则返回语言代码的前两个字母，并尝试匹配我们的语言文件
-            let lang_code = locale.split('-').next().unwrap_or("en").split('_').next().unwrap_or("en");
+            let lang_code = locale
+                .split('-')
+                .next()
+                .unwrap_or("en")
+                .split('_')
+                .next()
+                .unwrap_or("en");
             match lang_code {
                 "zh" => "zh-CN".to_string(),
                 "en" => "en".to_string(),
@@ -52,7 +57,7 @@ fn detect_system_locale() -> String {
                 return "zh-CN".to_string();
             }
         }
-        
+
         // 最后返回默认语言
         "en".to_string()
     }
@@ -88,8 +93,8 @@ async fn main() -> anyhow::Result<()> {
         .init();
 
     let system_locale = detect_system_locale();
-    miniclaw::rust_i18n::set_locale(&system_locale);
-    tracing::info!("{}", t!("system_locale_detected", locale = system_locale));
+    rust_i18n::set_locale(&system_locale);
+    tracing::info!("{}", t!("system_locale_detected", system_locale = system_locale));
 
     // 网关配置路径：~/.claude/claw/config.toml
     let config_path = miniclaw::config::gateway_config_path();
@@ -101,7 +106,7 @@ async fn main() -> anyhow::Result<()> {
         let wecom = if let Some(wecom_cfg) = &agent_cfg.wecom {
             tracing::info!("{}", t!("initializing_agent_wecom", name = name));
             let wecom = Arc::new(WeComChannel::new(wecom_cfg.clone()));
-            
+
             let (tx, mut rx) = tokio::sync::mpsc::channel::<ChannelMessage>(100);
             let wecom_clone = wecom.clone();
             let repo = agent_cfg.repo.clone();
@@ -128,11 +133,17 @@ async fn main() -> anyhow::Result<()> {
                                     .send(&SendMessage::new(response, &msg.reply_target))
                                     .await
                                 {
-                                    tracing::error!("{}", t!("failed_to_send_wecom_reply", error = e));
+                                    tracing::error!(
+                                        "{}",
+                                        t!("failed_to_send_wecom_reply", error = e)
+                                    );
                                 }
                             }
                             Err(e) => {
-                                tracing::error!("{}", t!("claude_cli_error", error = e.to_string()));
+                                tracing::error!(
+                                    "{}",
+                                    t!("claude_cli_error", error = e.to_string())
+                                );
                             }
                         }
                     });
@@ -173,18 +184,11 @@ async fn main() -> anyhow::Result<()> {
         tracing::info!("{}", t!("agents_loaded", count = agents.len()));
     }
 
-    let state = AppState { agents };
-
-    let app = Router::new()
-        .route("/health", get(|| async { "ok" }))
-        .layer(tower_http::trace::TraceLayer::new_for_http())
-        .with_state(state);
-
-    let addr = format!("{}:{}", config.server.addr, config.server.port);
-    let listener = tokio::net::TcpListener::bind(&addr).await?;
-    tracing::info!("{}", t!("listening_on", addr = listener.local_addr()?));
     tracing::info!("{}", t!("server_ready"));
-    axum::serve(listener, app).await?;
+
+    // 等待 Ctrl+C 信号，防止程序直接退出导致背景任务被取消
+    tokio::signal::ctrl_c().await?;
+    tracing::info!("Shutting down...");
 
     Ok(())
 }

@@ -8,7 +8,7 @@
   "claude_process_failed": "Claude 进程失败：%{error}",
   "failed_to_read_config": "读取配置文件失败",
   "failed_to_parse_config": "解析配置文件失败",
-  "system_locale_detected": "检测到系统语言：%{locale}",
+  "system_locale_detected": "检测到系统语言：%{system_locale}",
   "failed_to_send_wecom_reply": "发送 WeCom 回复失败：%{error}",
   "claude_cli_error": "Claude CLI 错误：%{error}",
   "wecom_sending_message_body": "WeCom 发送消息：body=%{body}",

@@ -8,7 +8,7 @@
   "claude_process_failed": "Claude process failed: %{error}",
   "failed_to_read_config": "Failed to read config file",
   "failed_to_parse_config": "Failed to parse config file",
-  "system_locale_detected": "System locale detected: %{locale}",
+  "system_locale_detected": "System locale detected: %{system_locale}",
   "failed_to_send_wecom_reply": "Failed to send WeCom reply: %{error}",
   "claude_cli_error": "Claude CLI error: %{error}",
   "wecom_sending_message_body": "WeCom sending message: body=%{body}",
