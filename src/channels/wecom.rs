@@ -9,7 +9,7 @@ use tokio::sync::{Mutex, mpsc};
 use tokio::time::interval;
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace, warn};
 
 const WS_URL: &str = "wss://openws.work.weixin.qq.com";
 
@@ -130,13 +130,25 @@ impl Channel for WeComChannel {
     }
 
     async fn listen(&self, tx: mpsc::Sender<ChannelMessage>) -> anyhow::Result<()> {
+        let mut retry_count = 0;
+        let max_retry_delay = Duration::from_secs(30);
+        let base_retry_delay = Duration::from_secs(1);
+
         loop {
             info!("Connecting to WeCom WebSocket: {}", WS_URL);
             let (ws_stream, _) = match connect_async(WS_URL).await {
-                Ok(v) => v,
+                Ok(v) => {
+                    retry_count = 0; // Reset retry count on successful connection
+                    v
+                }
                 Err(e) => {
-                    error!("Failed to connect to WeCom WS: {}. Retrying in 5s...", e);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    let delay = std::cmp::min(
+                        base_retry_delay * 2u32.pow(retry_count),
+                        max_retry_delay,
+                    );
+                    error!("Failed to connect to WeCom WS: {}. Retrying in {:?}...", e, delay);
+                    tokio::time::sleep(delay).await;
+                    retry_count += 1;
                     continue;
                 }
             };
@@ -170,12 +182,21 @@ impl Channel for WeComChannel {
                 .await?;
             info!("Sent subscription request: {}", req_id);
 
-            // 2. Heartbeat loop
+            // 2. Heartbeat loop components
             let mut heartbeat_interval = interval(Duration::from_secs(30));
+            let mut missed_pong_count = 0;
+            let max_missed_pongs = 2;
+            let mut stop_reconnecting = false;
 
             loop {
                 tokio::select! {
                     _ = heartbeat_interval.tick() => {
+                        if missed_pong_count >= max_missed_pongs {
+                            warn!("No heartbeat ack received for {} consecutive pings, connection considered dead", missed_pong_count);
+                            break;
+                        }
+
+                        missed_pong_count += 1;
                         let ping_req_id = Self::generate_req_id("ping");
                         let ping_frame = WsFrame {
                             cmd: Some("ping".to_string()),
@@ -184,6 +205,7 @@ impl Channel for WeComChannel {
                             errcode: None,
                             errmsg: None,
                         };
+                        trace!("Sending heartbeat (ping), missed_pong_count: {}", missed_pong_count);
                         if let Err(e) = ws_write.send(Message::Text(serde_json::to_string(&ping_frame)?.into())).await {
                             error!("Failed to send heartbeat: {}", e);
                             break;
@@ -229,12 +251,28 @@ impl Channel for WeComChannel {
                                             }
                                         }
                                         "aibot_event_callback" => {
+                                            if let Some(body) = &frame.body {
+                                                if let Some(event) = body.get("event") {
+                                                    if let Some(event_type) = event.get("eventtype") {
+                                                        if event_type == "disconnected_event" {
+                                                            warn!("Received disconnected_event: a new connection has been established, this connection will be closed by server. Stopping reconnection to avoid conflict.");
+                                                            stop_reconnecting = true;
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            }
                                             debug!("Received event: {:?}", frame.body);
                                         }
                                         _ => debug!("Unhandled command: {}", cmd),
                                     }
                                 } else {
                                     // Response to our requests
+                                    if frame.headers.req_id.starts_with("ping") {
+                                        trace!("Received heartbeat ack (pong)");
+                                        missed_pong_count = 0;
+                                    }
+
                                     if let Some(errcode) = frame.errcode {
                                         if errcode != 0 {
                                             error!("Error response from WeCom: {} ({:?})", errcode, frame.errmsg);
@@ -250,8 +288,12 @@ impl Channel for WeComChannel {
                                     }
                                 }
                             }
-                            Some(Ok(Message::Close(_))) | None => {
-                                warn!("WeCom WS connection closed. Reconnecting...");
+                            Some(Ok(Message::Close(cf))) => {
+                                warn!("WeCom WS connection closed: {:?}. Reconnecting...", cf);
+                                break;
+                            }
+                            None => {
+                                warn!("WeCom WS stream returned None. Reconnecting...");
                                 break;
                             }
                             Some(Err(e)) => {
@@ -270,8 +312,18 @@ impl Channel for WeComChannel {
                 *guard = None;
             }
 
-            error!("WS connection lost. Retrying in 5s...");
-            tokio::time::sleep(Duration::from_secs(5)).await;
+            if stop_reconnecting {
+                error!("Conflict detected. Exiting listener loop.");
+                return Ok(());
+            }
+
+            let delay = std::cmp::min(
+                base_retry_delay * 2u32.pow(retry_count),
+                max_retry_delay,
+            );
+            error!("WS connection lost. Retrying in {:?}...", delay);
+            tokio::time::sleep(delay).await;
+            retry_count += 1;
         }
     }
 }

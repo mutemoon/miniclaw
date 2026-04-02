@@ -193,13 +193,15 @@ async fn run_server() -> anyhow::Result<()> {
             let (tx, mut rx) = tokio::sync::mpsc::channel::<ChannelMessage>(100);
             let wecom_clone = wecom.clone();
             let repo = agent_cfg.repo.clone();
-            let name_clone = name.clone();
+            let name_for_loop = name.clone();
+            let name_for_listener = name.clone();
 
             // 启动消息处理循环
             tokio::spawn(async move {
                 while let Some(msg) = rx.recv().await {
                     let wecom = wecom_clone.clone();
                     let repo = repo.clone();
+                    let name_for_claude = name_for_loop.clone();
                     tracing::info!(
                         "{}",
                         t!(
@@ -221,7 +223,7 @@ async fn run_server() -> anyhow::Result<()> {
                     });
 
                     tokio::spawn(async move {
-                        match run_claude_process(&msg.content, &repo).await {
+                        match run_claude_process(&name_for_claude, &msg.content, &repo).await {
                             Ok(response) => {
                                 if let Err(e) = wecom
                                     .send(&SendMessage::new(response, &msg.reply_target))
@@ -248,7 +250,7 @@ async fn run_server() -> anyhow::Result<()> {
             let wecom_listen = wecom.clone();
             tokio::spawn(async move {
                 if let Err(e) = wecom_listen.listen(tx).await {
-                    tracing::error!("WeCom listener for {} failed: {}", name_clone, e);
+                    tracing::error!("WeCom listener for {} failed: {}", name_for_listener, e);
                 }
             });
 
