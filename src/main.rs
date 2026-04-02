@@ -94,7 +94,10 @@ async fn main() -> anyhow::Result<()> {
 
     let system_locale = detect_system_locale();
     rust_i18n::set_locale(&system_locale);
-    tracing::info!("{}", t!("system_locale_detected", system_locale = system_locale));
+    tracing::info!(
+        "{}",
+        t!("system_locale_detected", system_locale = system_locale)
+    );
 
     // 网关配置路径：~/.claude/claw/config.toml
     let config_path = miniclaw::config::gateway_config_path();

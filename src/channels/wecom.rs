@@ -44,7 +44,7 @@ struct CallbackBody {
     #[serde(default)]
     sender: Option<WeComSender>,
     #[serde(default)]
-    content: Option<String>,
+    text: Option<WeComText>,
     #[serde(default)]
     event: Option<WeComEvent>,
 }
@@ -57,6 +57,11 @@ struct WeComSender {
 #[derive(Debug, Serialize, Deserialize)]
 struct WeComEvent {
     eventtype: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct WeComText {
+    content: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -206,11 +211,15 @@ impl Channel for WeComChannel {
                                         "aibot_msg_callback" => {
                                             if let Some(body) = frame.body {
                                                 if let Ok(callback) = serde_json::from_value::<CallbackBody>(body) {
+                                                    let content = match callback.msgtype.as_str() {
+                                                        "text" => callback.text.map(|t| t.content).unwrap_or_default(),
+                                                        _ => String::from("Unsupported message type"),
+                                                    };
                                                     let msg = ChannelMessage {
                                                         id: callback.msgid,
                                                         sender: callback.sender.map(|s| s.senderid).unwrap_or_else(|| "unknown".to_string()),
                                                         reply_target: frame.headers.req_id.clone(), // Use req_id for reply
-                                                        content: callback.content.unwrap_or_default(),
+                                                        content,
                                                         channel: "wecom".to_string(),
                                                         timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
                                                         thread_ts: None,
