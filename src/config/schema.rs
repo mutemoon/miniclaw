@@ -3,8 +3,8 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct WeComConfig {
-    pub token: Option<String>,
-    pub encoding_aes_key: Option<String>,
+    pub bot_id: String,
+    pub secret: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
@@ -39,7 +39,7 @@ impl Default for ServerConfig {
 #[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct Config {
     pub server: ServerConfig,
-    /// key 为 agent 名，对应路由 /wecom/<name>
+    /// key 为 agent 名
     #[serde(default)]
     pub agents: HashMap<String, AgentConfig>,
 }

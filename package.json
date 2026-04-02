@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"@wecom/aibot-node-sdk": "^1.0.4"
+	}
+}

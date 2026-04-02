@@ -25,4 +25,7 @@ tower-http = { version = "0.5", features = ["trace"] }
 rust-i18n = "3.1"
 sys-locale = "0.3"
 tracing-appender = "0.2"
+tokio-tungstenite = "0.26"
+futures-util = "0.3"
+url = "2.5"
 dirs = "5.0"

@@ -32,13 +32,12 @@ addr = "0.0.0.0"
 port = 3000
 
 # 每个 agent 对应一个仓库和一个 channel
-# 路由: /wecom/<agent-name>
 [agents.my-agent]
 repo = "/path/to/your/repo"
 
 [agents.my-agent.wecom]
-token = "YOUR_WECOM_TOKEN"
-encoding_aes_key = "YOUR_AES_KEY"
+bot_id = "YOUR_BOT_ID"
+secret = "YOUR_BOT_SECRET"
 "#;
 
         std::fs::write(path, guided_toml).context(t!("failed_to_write_config"))?;

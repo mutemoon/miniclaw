@@ -1,8 +1,9 @@
 use axum::{Router, routing::get};
-use miniclaw::handlers::wecom::{handle_wecom_verify, handle_wecom_webhook};
+use miniclaw::channels::traits::{Channel, ChannelMessage, SendMessage};
+use miniclaw::channels::wecom::WeComChannel;
 use miniclaw::state::{AgentEntry, AppState};
 rust_i18n::i18n!("locales");
-use miniclaw::wecom::WeComChannel;
+use miniclaw::utils::run_claude_process;
 use rust_i18n::t;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -99,7 +100,54 @@ async fn main() -> anyhow::Result<()> {
     for (name, agent_cfg) in &config.agents {
         let wecom = if let Some(wecom_cfg) = &agent_cfg.wecom {
             tracing::info!("{}", t!("initializing_agent_wecom", name = name));
-            Some(Arc::new(WeComChannel::new(wecom_cfg.clone())))
+            let wecom = Arc::new(WeComChannel::new(wecom_cfg.clone()));
+            
+            let (tx, mut rx) = tokio::sync::mpsc::channel::<ChannelMessage>(100);
+            let wecom_clone = wecom.clone();
+            let repo = agent_cfg.repo.clone();
+            let name_clone = name.clone();
+
+            // 启动消息处理循环
+            tokio::spawn(async move {
+                while let Some(msg) = rx.recv().await {
+                    let wecom = wecom_clone.clone();
+                    let repo = repo.clone();
+                    tracing::info!(
+                        "{}",
+                        t!(
+                            "wecom_webhook_message",
+                            sender = msg.sender,
+                            content = msg.content
+                        )
+                    );
+
+                    tokio::spawn(async move {
+                        match run_claude_process(&msg.content, &repo).await {
+                            Ok(response) => {
+                                if let Err(e) = wecom
+                                    .send(&SendMessage::new(response, &msg.reply_target))
+                                    .await
+                                {
+                                    tracing::error!("{}", t!("failed_to_send_wecom_reply", error = e));
+                                }
+                            }
+                            Err(e) => {
+                                tracing::error!("{}", t!("claude_cli_error", error = e.to_string()));
+                            }
+                        }
+                    });
+                }
+            });
+
+            // 启动企微长链接监听
+            let wecom_listen = wecom.clone();
+            tokio::spawn(async move {
+                if let Err(e) = wecom_listen.listen(tx).await {
+                    tracing::error!("WeCom listener for {} failed: {}", name_clone, e);
+                }
+            });
+
+            Some(wecom)
         } else {
             None
         };
@@ -128,10 +176,7 @@ async fn main() -> anyhow::Result<()> {
     let state = AppState { agents };
 
     let app = Router::new()
-        .route(
-            "/wecom/:agent_name",
-            get(handle_wecom_verify).post(handle_wecom_webhook),
-        )
+        .route("/health", get(|| async { "ok" }))
         .layer(tower_http::trace::TraceLayer::new_for_http())
         .with_state(state);
 

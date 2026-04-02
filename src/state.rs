@@ -1,4 +1,4 @@
-use crate::wecom::WeComChannel;
+use crate::channels::wecom::WeComChannel;
 use std::collections::HashMap;
 use std::sync::Arc;
 
