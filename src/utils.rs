@@ -10,8 +10,13 @@ pub fn truncate_with_ellipsis(s: &str, max_len: usize) -> String {
     }
 }
 
-/// 在指定仓库目录下调用 claude CLI 执行 prompt
 pub async fn run_claude_process(prompt: &str, repo_dir: &str) -> anyhow::Result<String> {
+    tracing::info!(
+        "Executing Claude CLI in {}: \"{}\"",
+        repo_dir,
+        truncate_with_ellipsis(prompt, 50)
+    );
+
     let output = tokio::process::Command::new("claude")
         .arg("-p")
         .arg(prompt)
@@ -23,7 +28,13 @@ pub async fn run_claude_process(prompt: &str, repo_dir: &str) -> anyhow::Result<
         .await?;
 
     if output.status.success() {
-        Ok(String::from_utf8_lossy(&output.stdout).to_string())
+        let result = String::from_utf8_lossy(&output.stdout).to_string();
+        tracing::info!(
+            "Claude CLI response ({} chars): \"{}\"",
+            result.len(),
+            truncate_with_ellipsis(&result, 100)
+        );
+        Ok(result)
     } else {
         let err = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!(t!("claude_process_failed", error = err))
