@@ -128,6 +128,17 @@ async fn main() -> anyhow::Result<()> {
                             content = msg.content
                         )
                     );
+                    // 先回复“收到”
+                    let wecom_ack = wecom.clone();
+                    let reply_target = msg.reply_target.clone();
+                    tokio::spawn(async move {
+                        if let Err(e) = wecom_ack
+                            .send(&SendMessage::new(t!("wecom_receiving_msg").to_string(), &reply_target))
+                            .await
+                        {
+                            tracing::error!("Failed to send acknowledgement: {}", e);
+                        }
+                    });
 
                     tokio::spawn(async move {
                         match run_claude_process(&msg.content, &repo).await {

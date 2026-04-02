@@ -1,5 +1,6 @@
 {
   "wecom_webhook_message": "收到来自 %{sender} 的 WeCom 消息：%{content}",
+  "wecom_receiving_msg": "收到消息，正在处理中... ⏳",
   "invalid_wecom_response_url": "无效的 WeCom response_url: %{url}",
   "wecom_sending_message": "WeCom 发送消息：recipient=%{recipient} content_len=%{len}",
   "wecom_reply_failed": "WeCom 回复失败：status=%{status} body=%{body}",
