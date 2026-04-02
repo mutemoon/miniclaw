@@ -1,5 +1,7 @@
+use clap::{Parser, Subcommand};
 use miniclaw::channels::traits::{Channel, ChannelMessage, SendMessage};
 use miniclaw::channels::wecom::WeComChannel;
+use miniclaw::config::schema::{AgentConfig, Config, WeComConfig};
 use miniclaw::state::AgentEntry;
 use miniclaw::utils::run_claude_process;
 use rust_i18n::t;
@@ -8,7 +10,23 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use tracing_subscriber::prelude::*;
 
+#[derive(Parser)]
+#[command(author, version, about, long_about = None)]
+struct Cli {
+    #[command(subcommand)]
+    command: Option<Commands>,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Run the gateway service (default)
+    Run,
+    /// Guided configuration of Agent and its Channel
+    Onboard,
+}
+
 fn detect_system_locale() -> String {
+    // ... (rest of detect_system_locale remains the same)
     // 首先尝试使用 sys-locale 获取系统语言
     if let Some(locale) = sys_locale::get_locale() {
         // 对于 "C.UTF-8" 这样的情况，尝试从环境变量获取更多信息
@@ -65,6 +83,8 @@ fn detect_system_locale() -> String {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let cli = Cli::parse();
+
     let log_dir = ".claude/miniclaw";
     std::fs::create_dir_all(log_dir)?;
 
@@ -94,9 +114,69 @@ async fn main() -> anyhow::Result<()> {
 
     let system_locale = detect_system_locale();
     rust_i18n::set_locale(&system_locale);
+
+    match cli.command {
+        Some(Commands::Onboard) => run_onboard().await?,
+        Some(Commands::Run) | None => run_server().await?,
+    }
+
+    Ok(())
+}
+
+async fn run_onboard() -> anyhow::Result<()> {
+    println!("{}", t!("onboard_welcome"));
+
+    let agent_name = inquire::Text::new(&t!("onboard_agent_name").to_string())
+        .with_default("my-agent")
+        .prompt()?;
+
+    let repo_path = inquire::Text::new(&t!("onboard_repo_path").to_string()).prompt()?;
+
+    let channel_type = inquire::Select::new(&t!("onboard_channel_type").to_string(), vec!["WeCom"])
+        .prompt()?;
+
+    let mut agents = HashMap::new();
+
+    if channel_type == "WeCom" {
+        let bot_id = inquire::Text::new(&t!("onboard_wecom_bot_id").to_string()).prompt()?;
+        let secret = inquire::Password::new(&t!("onboard_wecom_secret").to_string())
+            .with_display_mode(inquire::PasswordDisplayMode::Masked)
+            .prompt()?;
+
+        agents.insert(
+            agent_name,
+            AgentConfig {
+                repo: repo_path,
+                wecom: Some(WeComConfig { bot_id, secret }),
+            },
+        );
+    }
+
+    let config = Config {
+        server: Default::default(),
+        agents,
+    };
+
+    let config_path = miniclaw::config::gateway_config_path();
+    match miniclaw::config::save_config(&config_path, &config) {
+        Ok(_) => {
+            println!(
+                "{}",
+                t!("onboard_success", path = config_path.display().to_string())
+            );
+        }
+        Err(e) => {
+            eprintln!("{}", t!("onboard_error", error = e.to_string()));
+        }
+    }
+
+    Ok(())
+}
+
+async fn run_server() -> anyhow::Result<()> {
     tracing::info!(
         "{}",
-        t!("system_locale_detected", system_locale = system_locale)
+        t!("system_locale_detected", system_locale = rust_i18n::locale().to_string())
     );
 
     // 网关配置路径：~/.claude/claw/config.toml

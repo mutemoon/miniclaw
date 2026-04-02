@@ -28,5 +28,15 @@
   "agent_repo_wecom_override": "agent '%{name}': 使用仓库级 wecom 配置覆盖网关配置",
   "no_agents_configured": "未配置任何 agent，请检查配置文件: %{path}",
   "agents_loaded": "已加载 %{count} 个 agent",
-  "initializing_agent_wecom": "正在初始化 agent '%{name}' 的企微 channel..."
+  "initializing_agent_wecom": "正在初始化 agent '%{name}' 的企微 channel...",
+  "onboard_welcome": "欢迎使用 MiniClaw！我们将引导您完成初始配置。",
+  "onboard_agent_name": "请输入 Agent 名称 (例如: my-agent):",
+  "onboard_repo_path": "请输入仓库的绝对路径:",
+  "onboard_channel_type": "请选择 Channel 类型:",
+  "onboard_wecom_bot_id": "请输入企微 Bot ID:",
+  "onboard_wecom_secret": "请输入企微 Bot Secret:",
+  "onboard_success": "配置已保存到 %{path}！现在您可以运行程序了。",
+  "onboard_error": "配置保存失败: %{error}",
+  "cmd_run_desc": "运行网关服务 (默认)",
+  "cmd_onboard_desc": "引导式配置 Agent 及其 Channel"
 }

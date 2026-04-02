@@ -28,5 +28,15 @@
   "agent_repo_wecom_override": "agent '%{name}': using repo-level wecom config (overrides gateway config)",
   "no_agents_configured": "No agents configured, please check: %{path}",
   "agents_loaded": "Loaded %{count} agent(s)",
-  "initializing_agent_wecom": "Initializing WeCom channel for agent '%{name}'..."
+  "initializing_agent_wecom": "Initializing WeCom channel for agent '%{name}'...",
+  "onboard_welcome": "Welcome to MiniClaw! We'll guide you through the initial configuration.",
+  "onboard_agent_name": "Please enter Agent name (e.g., my-agent):",
+  "onboard_repo_path": "Please enter the absolute path to the repository:",
+  "onboard_channel_type": "Please select Channel type:",
+  "onboard_wecom_bot_id": "Please enter WeCom Bot ID:",
+  "onboard_wecom_secret": "Please enter WeCom Bot Secret:",
+  "onboard_success": "Config saved to %{path}! You can now run the program.",
+  "onboard_error": "Failed to save config: %{error}",
+  "cmd_run_desc": "Run the gateway service (default)",
+  "cmd_onboard_desc": "Guided configuration of Agent and its Channel"
 }

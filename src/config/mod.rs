@@ -23,32 +23,7 @@ pub fn load_config<P: AsRef<Path>>(path: P) -> anyhow::Result<Config> {
     let path = path.as_ref();
 
     if !path.exists() {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).context(t!("failed_to_create_config_dir"))?;
-        }
-
-        let guided_toml = r#"[server]
-addr = "0.0.0.0"
-port = 3000
-
-# 每个 agent 对应一个仓库和一个 channel
-[agents.my-agent]
-repo = "/path/to/your/repo"
-
-[agents.my-agent.wecom]
-bot_id = "YOUR_BOT_ID"
-secret = "YOUR_BOT_SECRET"
-"#;
-
-        std::fs::write(path, guided_toml).context(t!("failed_to_write_config"))?;
-
-        println!(
-            "{}",
-            t!("config_generated")
-        );
-        println!("{}", path.display().to_string());
-        println!("{}", t!("please_configure"));
-        std::process::exit(0);
+        anyhow::bail!(t!("failed_to_read_config"));
     }
 
     tracing::info!("{}", t!("loading_config"));
@@ -73,6 +48,17 @@ secret = "YOUR_BOT_SECRET"
     }
 
     Ok(config)
+}
+
+pub fn save_config<P: AsRef<Path>>(path: P, config: &Config) -> anyhow::Result<()> {
+    let path = path.as_ref();
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent).context(t!("failed_to_create_config_dir"))?;
+    }
+
+    let content = toml::to_string_pretty(config)?;
+    std::fs::write(path, content).context(t!("failed_to_write_config"))?;
+    Ok(())
 }
 
 /// 读取仓库级配置并合并到 agent 配置（仓库配置字段优先）
@@ -121,5 +107,45 @@ fn merge_repo_config(agent_name: &str, agent: &mut AgentConfig) {
     if let Some(repo_wecom) = repo_cfg.wecom {
         tracing::info!("{}", t!("agent_repo_wecom_override", name = agent_name));
         agent.wecom = Some(repo_wecom);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::schema::{Config, ServerConfig, AgentConfig, WeComConfig};
+    use std::collections::HashMap;
+
+    #[test]
+    fn test_save_and_load_config() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.toml");
+        
+        let mut agents = HashMap::new();
+        agents.insert("test-agent".to_string(), AgentConfig {
+            repo: "/tmp/repo".to_string(),
+            wecom: Some(WeComConfig {
+                bot_id: "test-bot".to_string(),
+                secret: "test-secret".to_string(),
+            }),
+        });
+
+        let config = Config {
+            server: ServerConfig {
+                addr: "127.0.0.1".to_string(),
+                port: 8080,
+            },
+            agents,
+        };
+
+        save_config(&config_path, &config).unwrap();
+        let loaded_config = load_config(&config_path).unwrap();
+
+        assert_eq!(loaded_config.server.addr, "127.0.0.1");
+        assert_eq!(loaded_config.server.port, 8080);
+        assert!(loaded_config.agents.contains_key("test-agent"));
+        let agent = loaded_config.agents.get("test-agent").unwrap();
+        assert_eq!(agent.repo, "/tmp/repo");
+        assert_eq!(agent.wecom.as_ref().unwrap().bot_id, "test-bot");
     }
 }
